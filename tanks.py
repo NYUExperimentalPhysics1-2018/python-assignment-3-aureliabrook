@@ -3,14 +3,18 @@
 """
 Created on Thu Oct 18 19:18:02 2018
 
-@author: gershow
+@author: Aurelia Brook
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+import random
+
 
 tank1Color = 'b'
 tank2Color = 'r'
 obstacleColor = 'k'
+wind = random.uniform (-10, 10)
 
 ##### functions you need to implement #####
 def trajectory (x0,y0,v,theta,g = 9.8, npts = 1000):
@@ -23,7 +27,7 @@ def trajectory (x0,y0,v,theta,g = 9.8, npts = 1000):
         initial x - position
     y0 : float
         initial y - position, must be >0
-        initial velocity
+    v  : initial velocity
     theta : float
         initial angle (in degrees)
     g : float (default 9.8)
@@ -44,7 +48,15 @@ def trajectory (x0,y0,v,theta,g = 9.8, npts = 1000):
     0.5g t^2 - vsin(theta) t - y0 = 0
     t_final = v/g sin(theta) + sqrt((v/g)^2 sin^2(theta) + 2 y0/g)
     """
-  
+    theta = np.deg2rad(theta)
+    
+    vx=v*math.cos(theta) + wind
+    vy=v*math.sin(theta)
+    tf=(vy/g)+((vy/g)**2+2*(y0/g))**.5
+    t=np.linspace(0, tf, 10000)
+    x=x0+vx*t
+    y=y0+vy*t-0.5*g*(t**2)
+    return (x,y)
 
 def firstInBox (x,y,box):
     """
@@ -65,8 +77,10 @@ def firstInBox (x,y,box):
         y[j] is in [bottom,top]
         -1 if the line x,y does not go through the box
     """
-
-
+    for j in range(len(x)-1):
+        if x[j] < box[1] and x[j] > box[0] and y[j] < box[3] and y[j] > box[2]:
+            return j
+    return -1
     
 
 def tankShot (targetBox, obstacleBox, x0, y0, v, theta, g = 9.8):
@@ -96,8 +110,21 @@ def tankShot (targetBox, obstacleBox, x0, y0, v, theta, g = 9.8):
     obstacle box
     draws the truncated trajectory in current plot window
     """
-    
-
+    x,y = trajectory(x0,y0,v,theta)
+    if firstInBox(x,y,obstacleBox) >= 0:
+        x,y=endTrajectoryAtIntersection (x,y,obstacleBox)
+        plt.plot(x,y)
+        showWindow()
+        return 0
+    if firstInBox(x,y,targetBox) < 0:
+        plt.plot(x,y)
+        showWindow()
+        return 0
+    else:
+        x,y=endTrajectoryAtIntersection (x,y,targetBox)
+        plt.plot(x,y)
+        showWindow()
+        return 1
 
 def drawBoard (tank1box, tank2box, obstacleBox, playerNum):
     """
@@ -115,6 +142,18 @@ def drawBoard (tank1box, tank2box, obstacleBox, playerNum):
  
     """    
     #your code here
+    plt.clf()
+    if playerNum == 1:
+        z= "Player 1's Turn"
+    else:
+        z= "Player 2's Turn"
+    plt.title(z)
+    print("WIND = ", round(wind,1))
+    drawBox(tank1box, tank1Color)
+    drawBox(tank2box, tank2Color)
+    drawBox(obstacleBox, obstacleColor)
+    plt.xlim(0,100)
+    plt.ylim(0,100)
     
     showWindow() #this makes the figure window show up
 
@@ -143,9 +182,24 @@ def oneTurn (tank1box, tank2box, obstacleBox, playerNum, g = 9.8):
     displays trajectory (shot originates from center of tank)
     returns 0 for miss, 1 or 2 for victory
     """        
-
+    drawBoard(tank1box, tank2box, obstacleBox, playerNum)
+    v = getNumberInput('Enter velocity > ')
+    theta= getNumberInput('Enter angle > ')
+    if playerNum == 1:
+        origin = tank1box
+        target = tank2box
+    else:
+        origin = tank2box
+        target = tank1box
+        theta = 180 - theta
+    x0 = (origin[1] + origin[0]) / 2
+    y0 = (origin[3] + origin[2])/2
+    hit=tankShot(target, obstacleBox, x0, y0, v, theta)
+    if hit == 0:
+        return 0
+    else:
+        return playerNum
     
-
 def playGame(tank1box, tank2box, obstacleBox, g = 9.8):
     """
     parameters
@@ -161,7 +215,14 @@ def playGame(tank1box, tank2box, obstacleBox, g = 9.8):
      g : float 
         accel due to gravity (default 9.8)
     """
-    
+    playerNum = 1
+    while True:
+        player = oneTurn(tank1box, tank2box, obstacleBox, playerNum)
+        if player != 0:
+            break
+        input("Press Enter to Continue")
+        playerNum = 3 - playerNum
+    print('Congratulations',playerNum)
     
         
 ##### functions provided to you #####
@@ -245,8 +306,10 @@ def endTrajectoryAtIntersection (x,y,box):
 
 ##### fmain -- edit box locations for new games #####
 def main():
-    tank1box = [10,15,0,5]
-    tank2box = [90,95,0,5]
+    value1 = random.uniform(0, 35)
+    value2 = random.uniform(60, 95)
+    tank1box = [value1,value1 + 5,0,5]
+    tank2box = [value2,value2 + 5,0,5]
     obstacleBox = [40,60,0,50]
     playGame(tank1box, tank2box, obstacleBox)
     
